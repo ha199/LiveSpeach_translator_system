@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SpeechTT — Real-Time Speech to Text</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap');
+
+  :root {
+    --bg:      #0d0d14;
+    --surface: #14141f;
+    --surface2:#1e1e2e;
+    --border:  #2a2a40;
+    --accent:  #6c63ff;
+    --green:   #00d97e;
+    --yellow:  #ffc107;
+    --red:     #ff6584;
+    --text:    #e2e2f0;
+    --muted:   #666680;
+    --radius:  14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(108,99,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(108,99,255,0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none; z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 920px; margin: 0 auto; padding: 0 20px 60px; }
+
+  /* ── Header ── */
+  header {
+    padding: 28px 0 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .logo-text { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  .logo-text span { color: var(--accent); }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    font-size: 12px; color: var(--muted);
+    background: var(--surface);
+  }
+  .sdot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted); transition: all 0.3s;
+  }
+  .sdot.ok   { background: var(--green);  box-shadow: 0 0 8px var(--green); }
+  .sdot.rec  { background: var(--red);    box-shadow: 0 0 8px var(--red);   animation: pulse 1s infinite; }
+  .sdot.proc { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Mic card ── */
+  .mic-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 40px 30px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .mic-btn {
+    width: 96px; height: 96px;
+    border-radius: 50%;
+    border: 3px solid var(--border);
+    background: var(--surface2);
+    font-size: 36px;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .mic-btn:hover:not(:disabled) { border-color: var(--accent); transform: scale(1.06); }
+  .mic-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .mic-btn.recording {
+    border-color: var(--red);
+    background: rgba(255,101,132,0.1);
+    animation: ripple 1.3s infinite;
+  }
+  @keyframes ripple {
+    0%   { box-shadow: 0 0 0 0   rgba(255,101,132,0.5); }
+    70%  { box-shadow: 0 0 0 22px rgba(255,101,132,0); }
+    100% { box-shadow: 0 0 0 0   rgba(255,101,132,0); }
+  }
+
+  .mic-label    { display: block; margin-top: 16px; font-size: 15px; font-weight: 600; }
+  .mic-sublabel { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.6; }
+
+  /* Bars */
+  .bars { display: flex; align-items: center; justify-content: center; gap: 5px; height: 44px; margin-top: 20px; }
+  .bar  { width: 4px; border-radius: 2px; background: var(--accent); height: 5px; opacity: 0.3; transition: height 0.1s; }
+  .bar.on { opacity: 1; animation: wave 0.9s ease-in-out infinite; }
+  .bar:nth-child(2){animation-delay:.1s}
+  .bar:nth-child(3){animation-delay:.2s}
+  .bar:nth-child(4){animation-delay:.3s}
+  .bar:nth-child(5){animation-delay:.4s}
+  .bar:nth-child(6){animation-delay:.3s}
+  .bar:nth-child(7){animation-delay:.2s}
+  .bar:nth-child(8){animation-delay:.1s}
+  @keyframes wave { 0%,100%{height:5px} 50%{height:32px} }
+
+  /* ── Step indicator ── */
+  .steps {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; margin-bottom: 20px;
+  }
+  .step {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 6px; min-width: 90px;
+  }
+  .step-dot {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--surface2); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; transition: all 0.4s;
+  }
+  .step-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+  .step.active .step-dot { border-color: var(--accent); box-shadow: 0 0 12px rgba(108,99,255,0.6); }
+  .step.done   .step-dot { border-color: var(--green);  background: rgba(0,217,126,0.1); box-shadow: 0 0 10px rgba(0,217,126,0.4); }
+  .step-line { width: 50px; height: 2px; background: var(--border); margin-bottom: 22px; position: relative; overflow: hidden; }
+  .step-line.flowing::after { content:''; position:absolute; inset:0; background: linear-gradient(90deg,transparent,var(--accent),transparent); animation: flow 1s linear infinite; }
+  @keyframes flow { from{transform:translateX(-100%)} to{transform:translateX(100%)} }
+
+  /* ── Output boxes ── */
+  .outputs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media(max-width:600px){ .outputs{grid-template-columns:1fr} }
+
+  .out-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .out-head {
+    padding: 11px 16px; border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.02);
+  }
+  .out-body { padding: 18px; min-height: 110px; font-size: 15px; line-height: 1.7; }
+  #hindi-out { font-family: 'Noto Sans Devanagari', sans-serif; font-size: 16px; }
+  .ph { color: var(--muted); font-size: 13px; font-style: italic; }
+
+  /* ── History ── */
+  .history { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .hist-head {
+    padding: 13px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255,255,255,0.02);
+  }
+  .hist-title { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .hist-count { font-size: 11px; background: rgba(108,99,255,0.15); color: var(--accent); padding: 2px 10px; border-radius: 100px; }
+  .clear-btn  { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 5px 12px; border-radius: 8px; font-size: 11px; cursor: pointer; font-family: 'Inter',sans-serif; transition: all 0.2s; }
+  .clear-btn:hover { border-color: var(--red); color: var(--red); }
+  .hist-list { max-height: 380px; overflow-y: auto; }
+  .hist-item { padding: 16px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); animation: fadeIn 0.3s ease; }
+  .hist-item:last-child { border-bottom: none; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+  .hist-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .badge-final { font-size:10px; padding:2px 8px; border-radius:100px; font-weight:600; text-transform:uppercase; background:rgba(0,217,126,0.15); color:var(--green); }
+  .hist-time { font-size: 11px; color: var(--muted); margin-left: auto; }
+  .hist-en { font-size: 14px; margin-bottom: 6px; line-height: 1.5; }
+  .hist-en::before { content: '🇬🇧  '; }
+  .hist-hi { font-family: 'Noto Sans Devanagari',sans-serif; font-size: 14px; color: #a78bfa; line-height: 1.6; }
+  .hist-hi::before { content: '🇮🇳  '; }
+  .empty { padding: 48px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+
+  /* ── Toast ── */
+  .toast { position:fixed; bottom:24px; right:24px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 18px; font-size:13px; z-index:999; opacity:0; transform:translateY(10px); transition:all 0.3s; max-width:320px; }
+  .toast.show { opacity:1; transform:translateY(0); }
+  .toast.ok  { border-color: var(--green); }
+  .toast.err { border-color: var(--red);   }
+
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🎙</div>
+      <div class="logo-text">Speech<span>TT</span></div>
+    </div>
+    <div class="status-pill">
+      <div class="sdot" id="sdot"></div>
+      <span id="stext">Connecting...</span>
+    </div>
+  </header>
+
+  <!-- Pipeline steps -->
+  <div class="steps">
+    <div class="step" id="step-record">
+      <div class="step-dot">🎤</div>
+      <div class="step-lbl">Record</div>
+    </div>
+    <div class="step-line" id="line-1"></div>
+    <div class="step" id="step-whisper">
+      <div class="step-dot">👁</div>
+      <div class="step-lbl">Whisper</div>
+    </div>
+    <div class="step-line" id="line-2"></div>
+    <div class="step" id="step-gemini">
+      <div class="step-dot">🌐</div>
+      <div class="step-lbl">Gemini</div>
+    </div>
+    <div class="step-line" id="line-3"></div>
+    <div class="step" id="step-db">
+      <div class="step-dot">💾</div>
+      <div class="step-lbl">SQLite</div>
+    </div>
+    <div class="step-line" id="line-4"></div>
+    <div class="step" id="step-done">
+      <div class="step-dot">✅</div>
+      <div class="step-lbl">Done</div>
+    </div>
+  </div>
+
+  <!-- Mic card -->
+  <div class="mic-card">
+    <button class="mic-btn" id="micBtn" onclick="toggleRec()">🎤</button>
+    <span class="mic-label" id="micLabel">Click mic to start recording</span>
+    <p class="mic-sublabel">
+      Speak in English → click stop → Whisper transcribes → Gemini translates to Hindi
+    </p>
+    <div class="bars" id="bars">
+      <div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div>
+    </div>
+  </div>
+
+  <!-- Output boxes -->
+  <div class="outputs">
+    <div class="out-box">
+      <div class="out-head">🇬🇧 &nbsp;English Transcription</div>
+      <div class="out-body" id="eng-out"><span class="ph">Transcription will appear here...</span></div>
+    </div>
+    <div class="out-box">
+      <div class="out-head">🇮🇳 &nbsp;Hindi Translation</div>
+      <div class="out-body" id="hindi-out"><span class="ph">हिंदी अनुवाद यहाँ दिखेगा...</span></div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="history">
+    <div class="hist-head">
+      <div class="hist-title">
+        💾 Saved to Database
+        <span class="hist-count" id="hcount">0</span>
+      </div>
+      <button class="clear-btn" onclick="clearAll()">🗑 Clear All</button>
+    </div>
+    <div class="hist-list" id="hlist">
+      <div class="empty">No transcriptions yet — start recording!</div>
+    </div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const WS_URL   = 'ws://localhost:8000/ws/transcribe';
+  const HTTP_URL = 'http://localhost:8000';
+
+  let ws            = null;
+  let mediaRecorder = null;
+  let audioChunks   = [];
+  let isRecording   = false;
+
+  // ── Steps ─────────────────────────────────────────────────────
+  function setStep(id, state) {
+    const el = document.getElementById('step-' + id);
+    if (!el) return;
+    el.className = 'step ' + state;
+  }
+  function setLine(id, flowing) {
+    const el = document.getElementById('line-' + id);
+    if (!el) return;
+    el.className = 'step-line' + (flowing ? ' flowing' : '');
+  }
+  function resetSteps() {
+    ['record','whisper','gemini','db','done'].forEach(s => setStep(s, ''));
+    [1,2,3,4].forEach(l => setLine(l, false));
+  }
+
+  // ── Status ────────────────────────────────────────────────────
+  function setStatus(cls, txt) {
+    document.getElementById('sdot').className  = 'sdot ' + cls;
+    document.getElementById('stext').textContent = txt;
+  }
+
+  // ── Bars ──────────────────────────────────────────────────────
+  function barsOn()  { document.querySelectorAll('.bar').forEach(b => b.classList.add('on')); }
+  function barsOff() { document.querySelectorAll('.bar').forEach(b => b.classList.remove('on')); }
+
+  // ── Toast ─────────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg, type='ok') {
+    const t = document.getElementById('toast');
+    t.textContent = (type==='ok'?'✅ ':'❌ ') + msg;
+    t.className = 'toast show ' + type;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.className='toast', 4000);
+  }
+
+  // ── WebSocket ─────────────────────────────────────────────────
+  function connect() {
+    ws = new WebSocket(WS_URL);
+
+    ws.onopen = () => {
+      setStatus('ok', 'Backend connected ✓');
+      toast('Connected to backend');
+    };
+
+    ws.onmessage = (ev) => {
+      const msg = JSON.parse(ev.data);
+
+      if (msg.type === 'session_start') {
+        console.log('Session:', msg.session_id);
+      }
+
+      else if (msg.type === 'processing') {
+        if (msg.message.includes('Whisper')) {
+          setStep('whisper', 'active');
+          setLine(1, true);
+          setStatus('proc', 'Transcribing...');
+          document.getElementById('eng-out').innerHTML   = '<span class="ph">Transcribing audio...</span>';
+          document.getElementById('hindi-out').innerHTML = '<span class="ph">Wait...</span>';
+        } else {
+          setStep('whisper', 'done');
+          setLine(1, false);
+          setLine(2, true);
+          setStep('gemini', 'active');
+          setStatus('proc', 'Translating to Hindi...');
+        }
+      }
+
+      else if (msg.type === 'result') {
+        // All done
+        setStep('gemini', 'done');
+        setLine(2, false);
+        setLine(3, true);
+        setStep('db', 'done');
+        setLine(3, false);
+        setLine(4, true);
+        setStep('done', 'done');
+        setLine(4, false);
+
+        setStatus('ok', 'Done ✓');
+
+        document.getElementById('eng-out').textContent   = msg.english_text;
+        document.getElementById('hindi-out').textContent = msg.hindi_text;
+
+        addToHistory(msg);
+        toast('Saved to database ✓');
+
+        // Re-enable mic
+        document.getElementById('micBtn').disabled = false;
+      }
+
+      else if (msg.type === 'error') {
+        setStatus('', 'Error — try again');
+        toast(msg.message, 'err');
+        document.getElementById('micBtn').disabled = false;
+        resetSteps();
+      }
+    };
+
+    ws.onclose = () => {
+      setStatus('', 'Disconnected — retrying...');
+      setTimeout(connect, 3000);
+    };
+
+    ws.onerror = () => {
+      setStatus('', 'Backend not running');
+    };
+  }
+
+  // ── Record ────────────────────────────────────────────────────
+  async function toggleRec() {
+    if (isRecording) stopRec();
+    else await startRec();
+  }
+
+  async function startRec() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      toast('Backend not connected. Run python main.py first.', 'err');
+      return;
+    }
+
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch(e) {
+      toast('Microphone access denied — please allow it.', 'err');
+      return;
+    }
+
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunks.push(e.data);
+    };
+
+    // When user clicks stop — this fires
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      barsOff();
+
+      if (audioChunks.length === 0) {
+        toast('No audio recorded', 'err');
+        return;
+      }
+
+      // Combine all chunks into one complete audio blob
+      const blob   = new Blob(audioChunks, { type: 'audio/webm' });
+      const buffer = await blob.arrayBuffer();
+
+      console.log(`Sending ${buffer.byteLength} bytes to backend`);
+
+      // Send complete audio in one message
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(buffer);
+      } else {
+        toast('Connection lost — please refresh', 'err');
+      }
+
+      // Reset mic UI
+      document.getElementById('micBtn').classList.remove('recording');
+      document.getElementById('micBtn').textContent  = '🎤';
+      document.getElementById('micLabel').textContent = 'Processing...';
+      document.getElementById('micBtn').disabled = true; // disable until result arrives
+    };
+
+    mediaRecorder.start();
+    isRecording = true;
+
+    resetSteps();
+    setStep('record', 'active');
+    document.getElementById('micBtn').classList.add('recording');
+    document.getElementById('micBtn').textContent   = '⏹';
+    document.getElementById('micLabel').textContent = '🔴 Recording... Click to stop';
+    setStatus('rec', 'Recording');
+    barsOn();
+
+    document.getElementById('eng-out').innerHTML   = '<span class="ph">Listening...</span>';
+    document.getElementById('hindi-out').innerHTML = '<span class="ph">सुन रहा है...</span>';
+  }
+
+  function stopRec() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      isRecording = false;
+      setStep('record', 'done');
+      setLine(1, true);
+      document.getElementById('micLabel').textContent = 'Sending to Whisper...';
+      mediaRecorder.stop();
+    }
+  }
+
+  // ── History ───────────────────────────────────────────────────
+  function addToHistory(record) {
+    const list  = document.getElementById('hlist');
+    const empty = list.querySelector('.empty');
+    if (empty) empty.remove();
+
+    const time = new Date(record.timestamp || Date.now()).toLocaleTimeString();
+    const div  = document.createElement('div');
+    div.className = 'hist-item';
+    div.innerHTML = `
+      <div class="hist-meta">
+        <span class="badge-final">final</span>
+        <span class="hist-time">${time}</span>
+      </div>
+      <div class="hist-en">${record.english_text}</div>
+      <div class="hist-hi">${record.hindi_text}</div>
+    `;
+    list.insertBefore(div, list.firstChild);
+    document.getElementById('hcount').textContent =
+      list.querySelectorAll('.hist-item').length;
+  }
+
+  async function loadHistory() {
+    try {
+      const res  = await fetch(`${HTTP_URL}/api/transcriptions?limit=20`);
+      const data = await res.json();
+      const list = document.getElementById('hlist');
+      list.innerHTML = '';
+
+      if (!data.data || data.data.length === 0) {
+        list.innerHTML = '<div class="empty">No transcriptions yet — start recording!</div>';
+        document.getElementById('hcount').textContent = '0';
+        return;
+      }
+
+      data.data.forEach(r => {
+        const time = new Date(r.timestamp).toLocaleTimeString();
+        const div  = document.createElement('div');
+        div.className = 'hist-item';
+        div.innerHTML = `
+          <div class="hist-meta">
+            <span class="badge-final">${r.status}</span>
+            <span class="hist-time">${time}</span>
+          </div>
+          <div class="hist-en">${r.english_text}</div>
+          <div class="hist-hi">${r.hindi_text}</div>
+        `;
+        list.appendChild(div);
+      });
+
+      document.getElementById('hcount').textContent = data.count;
+    } catch(e) {
+      console.warn('History load failed:', e);
+    }
+  }
+
+  async function clearAll() {
+    if (!confirm('Delete all transcriptions from database?')) return;
+    try {
+      await fetch(`${HTTP_URL}/api/transcriptions`, { method: 'DELETE' });
+      document.getElementById('hlist').innerHTML = '<div class="empty">No transcriptions yet — start recording!</div>';
+      document.getElementById('hcount').textContent = '0';
+      toast('Database cleared');
+    } catch(e) {
+      toast('Failed — is backend running?', 'err');
+    }
+  }
+
+  // ── Start ─────────────────────────────────────────────────────
+  connect();
+  loadHistory();
+</script>
+</body>
+</html>
