@@ -9,7 +9,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-Database-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
 ![WebSocket](https://img.shields.io/badge/WebSocket-Real--Time-FF6B35?style=for-the-badge)
 
-**Record English speech → Whisper transcribes → Gemini translates to Hindi → Saved to database**
+**Record English speech → Whisper transcribes →  deep-translator, translates to Hindi → Saved to database**
 
 </div>
 
@@ -21,7 +21,7 @@ SpeechTT is a real-time Speech-to-Text service that:
 
 1. Records live English speech from your microphone in the browser
 2. Sends the complete audio to **OpenAI Whisper** (runs locally, completely free)
-3. Translates the English text to **Hindi** using **Google Gemini 2.0 Flash**
+3. Translates the English text to **Hindi** using ** deep-translator running locally 
 4. Saves both `english_text` and `hindi_text` with timestamp to a **SQLite database**
 5. Shows results instantly on screen with a live pipeline status indicator
 
@@ -43,7 +43,7 @@ FastAPI Backend — ws://localhost:8000/ws/transcribe
         │      numpy array → English text
         │      No ffmpeg PATH needed — runs completely in memory
         │
-        ├── 3. Google Gemini 2.0 Flash (free API)
+        ├── 3.  deep-translator (free  No API) first i tried gimini model but it has limit issue
         │      English text → Hindi translation
         │
         ├── 4. SQLite Database
@@ -59,7 +59,7 @@ FastAPI Backend — ws://localhost:8000/ws/transcribe
 
 - 🎤 **Live microphone recording** — click to start, click to stop
 - 🎯 **Accurate transcription** — records full audio before processing, no streaming chunks
-- 🇮🇳 **Hindi translation** — instant using Gemini 2.0 Flash
+- 🇮🇳 **Hindi translation** — instant using  deep-translator Locally
 - 💾 **SQLite database** — zero setup, saves automatically as a local file
 - 📋 **History panel** — all past transcriptions visible on screen
 - 🟢 **Live status indicator** — shows connection, recording, processing states
@@ -77,7 +77,7 @@ FastAPI Backend — ws://localhost:8000/ws/transcribe
 | WebSocket | FastAPI WebSocket |
 | Speech-to-Text | OpenAI Whisper (small model, runs locally) |
 | Audio Conversion | imageio-ffmpeg (bundled, no system install) |
-| Translation | Google Gemini 2.0 Flash |
+| Translation |  deep-translator |
 | Database | SQLite (zero setup, single file) |
 | Frontend | Plain HTML + CSS + Vanilla JavaScript |
 
@@ -90,7 +90,7 @@ speechtt/
 ├── backend/
 │   ├── main.py              ← FastAPI server + WebSocket endpoint
 │   ├── transcriber.py       ← Whisper STT using imageio ffmpeg
-│   ├── translator.py        ← Gemini 2.0 Flash Hindi translation
+│   ├── translator.py        ← G deep-translator Hindi translation
 │   ├── database.py          ← SQLite save, fetch, clear operations
 │   ├── requirements.txt     ← All Python dependencies
 │   └── .env.example         ← Copy to .env and add your Gemini key
@@ -106,7 +106,7 @@ speechtt/
 ### Prerequisites
 
 - **Python 3.8+** → https://python.org/downloads
-- **Free Gemini API key** → https://aistudio.google.com
+- 
 
 ---
 
@@ -117,13 +117,6 @@ cd speechtt
 ```
 
 ---
-
-### Step 2 — Get a Free Gemini API Key
-
-1. Go to → **https://aistudio.google.com**
-2. Click **Get API Key** → **Create API Key**
-3. Copy the key — it looks like `AIzaSy...`
-4. No credit card needed. Free tier: 1500 requests/day
 
 ---
 
@@ -158,21 +151,6 @@ pip install -r requirements.txt
 
 > ⚠️ First time takes 5–10 minutes — downloads Whisper small model (~460MB) and PyTorch.
 
----
-
-### Step 5 — Add Your Gemini API Key
-```bash
-cp .env.example .env
-```
-
-Open `backend/.env` in any text editor and replace the placeholder:
-```env
-GEMINI_API_KEY=AIzaSyYourActualKeyHere
-```
-
-Save the file.
-
----
 
 ### Step 6 — Run the Backend
 ```bash
@@ -215,6 +193,11 @@ The UI will show a **🟢 green dot** when the backend is connected and ready.
 
 ---
 
+Here you will see the UI like this whcih having all features 
+
+<img width="1600" height="1116" alt="image" src="https://github.com/user-attachments/assets/abb09d45-e9c5-474b-b005-d9ac325dec24" />
+
+
 ## 📡 API Reference
 
 ### Health Check
@@ -225,7 +208,7 @@ GET http://localhost:8000/health
 {
   "status": "ok",
   "stt_model": "whisper-small",
-  "translation_model": "gemini-2.0-flash",
+  "translation_model": " deep-translator",
   "database": "sqlite"
 }
 ```
@@ -275,13 +258,12 @@ CREATE TABLE transcriptions (
 | Problem | Fix |
 |---|---|
 | `ModuleNotFoundError` | Activate venv first: `.venv\Scripts\activate` then `pip install -r requirements.txt` |
-| `GEMINI_API_KEY missing` | Copy `.env.example` to `.env` and paste your key |
 | Red dot — backend not connecting | Make sure `python main.py` is running in backend folder |
 | Microphone not working | Click allow when browser asks for microphone permission |
 | No transcription / blank result | Speak clearly for at least 2–3 seconds before stopping |
 | Whisper WinError 2 | Already fixed — uses `imageio_ffmpeg` bundled binary |
 | Slow first transcription | Normal — Whisper loads model on first use |
-| Wrong translation | Gemini API key issue — check your `.env` file |
+
 
 ---
 
@@ -304,10 +286,10 @@ CREATE TABLE transcriptions (
 
 ## 📄 License
 
-MIT License — free to use and modify.
+Hari Hold All rights — free to use and modify.
 
 ---
 
 <div align="center">
-Built with OpenAI Whisper · Google Gemini 2.0 Flash · FastAPI · SQLite
+Built with OpenAI Whisper ·  deep-translator · FastAPI · SQLite
 </div>
