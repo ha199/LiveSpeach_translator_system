@@ -185,7 +185,7 @@ The UI will show a **🟢 green dot** when the backend is connected and ready.
 4. Allow microphone access when browser asks
 5. Speak clearly in English
 6. Click **⏹ stop** when done speaking
-7. Watch the pipeline steps light up — Record → Whisper → Gemini → DB → Done
+7. Watch the pipeline steps light up — Record → Whisper → Deep Translator → DB → Done
 8. English transcription and Hindi translation appear on screen
 9. Result is automatically saved to the database
 10. All past transcriptions shown in the history panel below
@@ -273,7 +273,7 @@ CREATE TABLE transcriptions (
 | Accept live audio input | Browser MediaRecorder API via WebSocket |
 | Real-time audio streaming | WebSocket binary stream |
 | Speech to English text | OpenAI Whisper small model |
-| Translate to Hindi | first i used Google Gemini 2.0 Flash but it havnig qouta limit issue then i changed to  |  deep-translator running localy no api
+| Translate to Hindi | first i used Google Gemini 2.0 Flash but it havnig qouta limit issue then i changed to deep-translator running localy no api
 | Store english_text | SQLite `transcriptions` table |
 | Store hindi_text | SQLite `transcriptions` table |
 | Store timestamp | UTC ISO format in SQLite |
